@@ -1,0 +1,101 @@
+buildscript {
+    ext {
+        asciidoctorjVersion = '1.5.6'
+        asciidoctorjPdfVersion = '1.5.0-alpha.16'
+        asciidoctorGroovyDslVersion = '1.0.0.Alpha2'
+    }
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "org.asciidoctor:asciidoctorj:$asciidoctorjVersion"
+        classpath "org.asciidoctor:asciidoctorj-pdf:$asciidoctorjPdfVersion"
+        classpath "org.asciidoctor:asciidoctorj-groovy-dsl:$asciidoctorGroovyDslVersion"
+    }
+}
+
+plugins {
+    id 'base'
+}
+
+
+ext {
+    asciidoctorAttributes = [
+        'common': [
+            'doctype'            : 'book',
+            'icons'              : 'font',
+            'attribute-missing'  : 'warn',
+        ],
+        'html': [
+            'stylesdir'          : 'css',
+            'linkcss'            : '',
+        ],
+        'pdf': [
+            'source-highlighter': 'rouge',
+            'doctype'           : 'book',
+            'toc'               : '',
+            'showlinks'         : '',
+            'nonhtmloutput'     : '',
+        ]
+    ]
+}
+
+def getAsciidoctor() {
+    if (!project.hasProperty('adoc')) { ext.adoc = org.asciidoctor.Asciidoctor.Factory.create() }
+    ext.adoc
+}
+
+
+task html {
+    description 'Build HTML'
+    ext.sourceDir = "${projectDir}/src"
+    ext.sourceFile = new File("${sourceDir}/asciidoc/index.adoc")
+    ext.outputDir = "${buildDir}/html"
+    inputs.dir sourceDir
+    outputs.dir outputDir
+    doLast {
+        def attrs = asciidoctorAttributes.common + asciidoctorAttributes.html + [
+            'imagesdir' : 'images',
+        ]
+        def opts = org.asciidoctor.OptionsBuilder.options()
+                .backend('html5')
+                .safe(org.asciidoctor.SafeMode.UNSAFE)
+                .toDir(new File(outputDir))
+                .mkDirs(true)
+                .attributes(attrs)
+        getAsciidoctor().convertFile(sourceFile, opts.get())
+    }
+    doLast {
+        copy {
+            from(sourceDir) {
+                include 'images/**'
+            }
+            into outputDir
+        }
+    }
+}
+
+task pdf {
+    description 'Build PDF.'
+    ext.sourceDir = "${projectDir}/src"
+    ext.sourceFile = new File("${sourceDir}/asciidoc/index.adoc")
+    ext.imagesDir = "${sourceDir}/images"
+    ext.outputDir = "${buildDir}/pdf"
+    ext.otputFile = "$outputDir/cypher-language-specification.pdf"
+    inputs.dir sourceDir
+    outputs.dir outputDir
+    doLast {
+        def attrs = asciidoctorAttributes.common + asciidoctorAttributes.pdf + [
+            'imagesdir' : imagesDir.toString(),
+        ]
+        def opts = org.asciidoctor.OptionsBuilder.options()
+                .backend('pdf')
+                .safe(org.asciidoctor.SafeMode.UNSAFE)
+                .toFile(new File(otputFile))
+                .mkDirs(true)
+                .attributes(attrs)
+        getAsciidoctor().convertFile(sourceFile, opts.get())
+    }
+}
+
+// vim: set fdm=expr:
